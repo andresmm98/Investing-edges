@@ -14,7 +14,9 @@ import requests
 import pandas as pd 
 
 def request(request_url):
-    api_key = f'59cb9e0309bfc1ef210167906090b097'
+    key_file = open('api_key.md','r')
+    api_key = f'{key_file.readline()}'
+    print(api_key)
     base_url = f'https://financialmodelingprep.com/api/v3/'
     api_url = f'apikey={api_key}'
     url = f'{base_url}{request_url}{api_url}'
@@ -23,5 +25,3 @@ def request(request_url):
 
 data = request('historical-price-full/AAPL?from=2018-03-12&to=2019-03-12&')
 print(data)
-historical = pd.DataFrame(data['historical'][:])
-print(historical)
