@@ -59,6 +59,7 @@ class market_data():
         # Obten las cotizaciones a la apertura de esos tickers en esa fecha:
         # Si no se puede obtener la cotización, inseta un []
         open = []
+        volume = []
         for i in range(len(tickers)):
 
             try:
@@ -66,13 +67,13 @@ class market_data():
             except:
                 o = None
             open.append(o)
-            
+
         # Obten el factor para cada ticker en esa fecha
         # Si no se puede obtener el factor, inseta un []
         fact = []
         for i in range(len(tickers)):
             try:
-               f = factor(tickers[i],date)
+               f = self.get_dta(date,tickers[i],f'{factor}')
             except:
                 f = None
         fact.append(f)

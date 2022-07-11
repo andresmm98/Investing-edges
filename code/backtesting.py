@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 class strategy(object):
 
     def __init__(self,
-                factor='sales',
+                factor='volume',
                 less_is_better=True):
 
         self.factor = factor # el factor a estudiar, de momento solo puede ser uno       
@@ -35,6 +35,7 @@ class backtesting(object):
 
     def __init__(self, 
                 strategy=strategy(),
+                quantiles=10,
                 market='NYSE',
                 start_date='1988-03-09',
                 check_period=30,
@@ -49,7 +50,7 @@ class backtesting(object):
         self.rebalance_period = rebalance_period # Debe ser un múltiplo de {check_period}
         self.budget = budget # presupuesto por portfolio
     
-    def create_quantiles(self, date, quantiles=self.quantiles):
+    def create_quantiles(self, date):
         ''' Divide el dataframe en X cuantiles según el factor deseado 
         
         Cada cuantil es una lista de tuplas (ticker, precio de apertura).
@@ -59,17 +60,18 @@ class backtesting(object):
         # - tantas filas como acciones coticen en ese mercado y fecha
         # - 3 columnas de nombre "symbol", "factor" y "open"
         # "close" es solamente el precio de cierre en esa fecha
+
         stocks_df = market_data.create_dataframe(self.strategy.factor, self.market, date)
         
         stocks_df.sort_values(by=self.factor, ascending=self.less_is_better)
 
         n_stocks = len(stocks_df.index)
-        stocks_per_quantile = int(n_stocks/quantiles)
+        stocks_per_quantile = int(n_stocks/self.quantiles)
         
         # Como la división de acciones por cuantil no será siempre entera, ponemos una acción más en los primeros cuantiles hasta que el resto sea 0
-        remainder = n_stocks % quantiles
+        remainder = n_stocks % self.quantiles
         split_indexes = []
-        for i in range(quantiles):
+        for i in range(self.quantiles):
             if i < remainder:
                 split_indexes.append(stocks_per_quantile + i + 1)
             else:
@@ -89,30 +91,30 @@ class backtesting(object):
         
         Los cuantiles vuelven a calcularse para cada nuevo rebalanceo'''
         
-        date = datetime.strptime(start_date, '%Y-%m-%d')
+        date = datetime.strptime(self.start_date, '%Y-%m-%d')
         n_checks = self.rebalance_period / self.check_period
  
         # initialize portfolios
         portfolio_list = []
-        for i in range(quantiles):
+        for i in range(self.quantiles):
             portfolio_list.append(portfolio(self))
 
         while date < datetime.today():
             # rebalance portfolios
             quantile_list = create_quantiles(date.strftime('%Y-%m-%d'))
-            for i in range(quantiles):
+            for i in range(self.quantiles):
                 portfolio_list[i] = build_portfolio(quantile_list[i], date.strftime('%Y-%m-%d'))
             
             # update performance
             for i in range(n_checks):
                 date += timedelta(self.check_period)
-                for i in range(quantiles):
+                for i in range(self.quantiles):
                     compute_performance(portfolio_list[i], date.strftime('%Y-%m-%d'))
         
         return portfolio_list
         # falta el código para mostrar los resultados
             
-class portfolio(object):
+class portfolio():
 
     def __init__(self, backtesting):
 
@@ -151,7 +153,7 @@ class portfolio(object):
         shares = (j for i, j in self.positions)
         
         # Se espera una lista con los precios de cierre del día anterior. Si la acción ha sido deslistada debe devolver None
-        prices = market_data.get_prices(tickers)
+        prices = market_data.get_prices(tickers, date)
 
         for i in range(len(tickers)):
             # suma el valor actual de las posiciones
@@ -172,4 +174,5 @@ def main():
     with backtesting() as factor:
         factor.backtest()
 
-#if __name__ == '__main__':
+if __name__ == '__main__':
+    main()
