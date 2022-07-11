@@ -31,26 +31,16 @@ class strategy(object):
         self.factor = factor # el factor a estudiar, de momento solo puede ser uno       
         self.less_is_better = less_is_better # para ordenar las acciones por orden ascendente o descendente
 
-class backtesting(object):
+    def __enter__(self):
+        """ Entering a with statement """
+        return self
 
-    def __init__(self, 
-                strategy=strategy(),
-                quantiles=10,
-                market='NYSE',
-                start_date='1988-03-09',
-                check_period=30,
-                rebalance_period=90,
-                budget=100000):
-
-        self.strategy = strategy
-        self.quantiles = quantiles
-        self.market = market
-        self.start_date = start_date
-        self.check_period = check_period # Periodo para actualizar el valor de la cartera. De momento debe estar en días
-        self.rebalance_period = rebalance_period # Debe ser un múltiplo de {check_period}
-        self.budget = budget # presupuesto por portfolio
+    def __exit__(self, exc_type, exc_value, traceback):
+        """ Exiting a with statement """
+        if traceback is not None:
+            print("Stopping with exception %s" % traceback)
     
-    def create_quantiles(self, date):
+    def create_quantiles(self, market_data, n_quantiles, date):
         ''' Divide el dataframe en X cuantiles según el factor deseado 
         
         Cada cuantil es una lista de tuplas (ticker, precio de apertura).
@@ -61,17 +51,17 @@ class backtesting(object):
         # - 3 columnas de nombre "symbol", "factor" y "open"
         # "close" es solamente el precio de cierre en esa fecha
 
-        stocks_df = market_data.create_dataframe(self.strategy.factor, self.market, date)
+        stocks_df = market_data.create_dataframe(self.factor, date)
         
         stocks_df.sort_values(by=self.factor, ascending=self.less_is_better)
 
         n_stocks = len(stocks_df.index)
-        stocks_per_quantile = int(n_stocks/self.quantiles)
+        stocks_per_quantile = int(n_stocks/n_quantiles)
         
         # Como la división de acciones por cuantil no será siempre entera, ponemos una acción más en los primeros cuantiles hasta que el resto sea 0
-        remainder = n_stocks % self.quantiles
+        remainder = n_stocks % n_quantiles
         split_indexes = []
-        for i in range(self.quantiles):
+        for i in range(n_quantiles):
             if i < remainder:
                 split_indexes.append(stocks_per_quantile + i + 1)
             else:
@@ -81,8 +71,15 @@ class backtesting(object):
         quantile_list = np.split(stocks_df, split_indexes)
 
         return quantile_list
-
-    def backtest(self):
+    
+    def backtest(self, 
+                n_quantiles=10,
+                market='NYSE',
+                n_stocks=100,
+                start_date='1988-03-09',
+                check_period=30, # Periodo para actualizar el valor de la cartera. De momento debe estar en días
+                rebalance_period=90, # Debe ser un múltiplo de {check_period}
+                budget=100000): # presupuesto por portfolio
         ''' Hace el backtesting de la estrategia dada 
         
         La lógica de la función es la siguiente:
@@ -91,47 +88,42 @@ class backtesting(object):
         
         Los cuantiles vuelven a calcularse para cada nuevo rebalanceo'''
         
-        date = datetime.strptime(self.start_date, '%Y-%m-%d')
-        n_checks = self.rebalance_period / self.check_period
+        mk = market_data.market_data(market, n_stocks)
+        date = datetime.strptime(start_date, '%Y-%m-%d')
+        n_checks = rebalance_period / check_period
  
         # initialize portfolios
         portfolio_list = []
-        for i in range(self.quantiles):
-            portfolio_list.append(portfolio(self))
+        for i in range(n_quantiles):
+            portfolio_list.append(portfolio(start_date, budget))
 
         while date < datetime.today():
             # rebalance portfolios
-            quantile_list = create_quantiles(date.strftime('%Y-%m-%d'))
-            for i in range(self.quantiles):
-                portfolio_list[i] = build_portfolio(quantile_list[i], date.strftime('%Y-%m-%d'))
+            quantile_list = self.create_quantiles(mk, n_quantiles, date.strftime('%Y-%m-%d'))
+            for i in range(n_quantiles):
+                portfolio_list[i] = portfolio_list[i].build_portfolio(quantile_list[i]['tickers'], quantile_list[i]['prices'], date.strftime('%Y-%m-%d'))
             
-            # update performance
-            for i in range(n_checks):
-                date += timedelta(self.check_period)
-                for i in range(self.quantiles):
-                    compute_performance(portfolio_list[i], date.strftime('%Y-%m-%d'))
+                # update performance
+                for j in range(n_checks):
+                    date += timedelta(check_period)
+                    for j in range(n_quantiles):
+                        portfolio_list[i].compute_performance(mk, date.strftime('%Y-%m-%d'))
         
         return portfolio_list
         # falta el código para mostrar los resultados
-            
+
 class portfolio():
 
-    def __init__(self, backtesting):
+    def __init__(self, start_date, initial_budget):
 
         self.positions = []
-        self.backtesting = backtesting
-        self.curr_value = backtesting.budget # valor monetario de la cartera. Al principio es el presupuesto inicial
-        self.rebalanced_date = backtesting.start_date # fecha del último rebalanceo. La primera es la fecha de inicio
-        self.perfomance = [(self.rebalanced_date, self.curr_value)] # lista de tuplas con fecha y valor
+        self.perfomance = [(start_date, initial_budget)] # lista de tuplas con fecha y valor
 
-    def build_portfolio(self, quantile, date=backtesting.start_date):
+    def build_portfolio(self, date, budget, tickers, prices):
         ''' Dado un cuantil de acciones se construye un portfolio para el presupuesto actual.
         El presupuesto se divide por igual entre todas las acciones.'''
 
         self.positions.clear() # reiniciamos el portfolio
-        
-        tickers = quantile['symbol']
-        prices = quantile['open']
         
         n_stocks = len(tickers)
         
@@ -141,11 +133,11 @@ class portfolio():
             position = money_per_stock / prices[i]
             self.positions.append((tickers[i], float(f'(position:4f)'))) # cada posición tiene 4 decimales, ignoramos el error de truncamiento
 
-        self.rebalanced_date = date # fecha del último rebalanceo
+        self.last_rebalance = date # fecha del último rebalanceo
         
         return self
 
-    def compute_performance(self, date):
+    def compute_performance(self, market_data, date):
         ''' De momento solo calcula el valor de un portfolio para una fecha X '''
 
         portfolio_value = 0
@@ -165,13 +157,12 @@ class portfolio():
             # suma los dividendos pagados
             portfolio_value += market_data.get_paid_dividends(tickers[i], date - self.backtesting.check_period, date) # debe calcular los dividendos pagados por una lista de acciones entre dos fechas
 
-        self.curr_value = portfolio_value
-        self.performance.append(date, self.curr_value)
+        self.performance.append(date, portfolio_value)
 
         return self
-    
+
 def main():
-    with backtesting() as factor:
+    with strategy() as factor:
         factor.backtest()
 
 if __name__ == '__main__':

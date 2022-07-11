@@ -15,7 +15,7 @@ def req(request_url, api_key):
 
 class market_data():
 
-    def __init__(self, market, n):
+    def __init__(self, market, n_stocks):
         
         # Inicializa una base de datos de tamaño n según el mercado, la información se guarda en dta y los tickers en symbols
         key_file = open('api_key.md','r')
@@ -24,7 +24,7 @@ class market_data():
         
         request_url = f'quotes/{market}?'
         symbols = req(request_url,self.api_key)
-        symbols = [t['symbol'] for t in symbols][0:n]
+        symbols = [t['symbol'] for t in symbols][0:n_stocks]
 
         dta = []
         for i in range(len(symbols)):
