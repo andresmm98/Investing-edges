@@ -91,4 +91,21 @@ class market_data():
                 c = None
             close.append(c)
 
-        return pd.DataFrame({'Closes': close}).dropna()  
+        return pd.DataFrame({'Closes': close}).dropna() 
+
+    def get_delisting_price(self,ticker):
+
+       # Devuelve el último cierre de un ticker deslistado
+
+       request_url = f'delisted-companies?page=0&'
+       t = req(request_url,self.api_key)
+
+       for i in range(len(t)):
+        if(t[i]['symbol'] == ticker):
+            d = t[i]['delistedDate']
+
+        request_url = f'historical-price-full/{ticker}?from={d}&to={d}&'
+        p = req(request_url,self.api_key)
+        p = p['historical'][0]['close']
+
+        return p 
