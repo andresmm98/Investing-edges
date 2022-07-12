@@ -58,28 +58,27 @@ class market_data():
         
         # Obten las cotizaciones a la apertura de esos tickers en esa fecha:
         # Si no se puede obtener la cotización, inseta un []
-        open = []
-        volume = []
+        opens = []
         for i in range(len(tickers)):
 
             try:
                 o = self.get_dta(date,tickers[i],'open')
             except:
                 o = None
-            open.append(o)
+            opens.append(o)
 
         # Obten el factor para cada ticker en esa fecha
         # Si no se puede obtener el factor, inseta un []
-        fact = []
+        factors = []
         for i in range(len(tickers)):
             try:
                f = self.get_dta(date,tickers[i],f'{factor}')
             except:
                 f = None
-        fact.append(f)
+            factors.append(f)
 
         # Crea el df:
-        return pd.DataFrame({'Tickers': tickers, 'Opens': open, 'Factor':fact}).dropna() #factor
+        return pd.DataFrame({'Tickers': tickers, 'Opens': opens, 'Factor':factors}).dropna() #factor
 
     def get_prices(self,tickers,date):
 

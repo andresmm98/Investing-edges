@@ -21,6 +21,7 @@ import numpy as np
 import matplotlib as plt
 import pandas as pd
 from datetime import datetime, timedelta
+import logging
 
 class strategy(object):
 
@@ -38,7 +39,7 @@ class strategy(object):
     def __exit__(self, exc_type, exc_value, traceback):
         """ Exiting a with statement """
         if traceback is not None:
-            print("Stopping with exception %s" % traceback)
+            logging.error("Stopping with exception %s" % traceback)
     
     def create_quantiles(self, market_data, n_quantiles, date):
         ''' Divide el dataframe en X cuantiles según el factor deseado 
@@ -51,7 +52,7 @@ class strategy(object):
         # - 3 columnas de nombre "symbol", "factor" y "open"
         # "close" es solamente el precio de cierre en esa fecha
 
-        stocks_df = market_data.create_dataframe(self.factor, date)
+        stocks_df = market_data.create_dataframe(date, self.factor)
         
         stocks_df.sort_values(by=self.factor, ascending=self.less_is_better)
 
@@ -88,7 +89,11 @@ class strategy(object):
         
         Los cuantiles vuelven a calcularse para cada nuevo rebalanceo'''
         
+        # Initialize market data
+        logging.debug("Importing market data...")
         mk = market_data.market_data(market, n_stocks)
+        logging.info("Market data imported succesfully.")
+        
         date = datetime.strptime(start_date, '%Y-%m-%d')
         n_checks = rebalance_period / check_period
  
@@ -96,18 +101,26 @@ class strategy(object):
         portfolio_list = []
         for i in range(n_quantiles):
             portfolio_list.append(portfolio(start_date, budget))
+        logging.info(f"{len(portfolio_list)} portfolios created succesfully")
 
         while date < datetime.today():
             # rebalance portfolios
             quantile_list = self.create_quantiles(mk, n_quantiles, date.strftime('%Y-%m-%d'))
+            logging.info(f"Stocks divided in {n_quantiles}")
+            
             for i in range(n_quantiles):
                 portfolio_list[i] = portfolio_list[i].build_portfolio(quantile_list[i]['tickers'], quantile_list[i]['prices'], date.strftime('%Y-%m-%d'))
-            
+                logging.info(f"Bought stocks at {date} for portfolio nº {i}")
+
                 # update performance
                 for j in range(n_checks):
                     date += timedelta(check_period)
                     for j in range(n_quantiles):
                         portfolio_list[i].compute_performance(mk, date.strftime('%Y-%m-%d'))
+                
+                logging.info(f"Updated performance for all portfolios at date {date}")
+
+            logging.info(f"Finished backtesting. Returning portfolio performances...")
         
         return portfolio_list
         # falta el código para mostrar los resultados
@@ -166,4 +179,6 @@ def main():
         factor.backtest()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(asctime)s: %(message)s')
+    
     main()
