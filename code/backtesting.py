@@ -77,7 +77,7 @@ class strategy(object):
                 n_quantiles=10,
                 market='NYSE',
                 n_stocks=100,
-                start_date='1988-03-09',
+                start_date='2018-03-09',
                 check_period=30, # Periodo para actualizar el valor de la cartera. De momento debe estar en días
                 rebalance_period=90, # Debe ser un múltiplo de {check_period}
                 budget=100000): # presupuesto por portfolio
@@ -122,8 +122,20 @@ class strategy(object):
 
             logging.info(f"Finished backtesting. Returning portfolio performances...")
         
+        # plot
+        '''
+        fig = plt.figure(figsize=(16,32))
+        ax = fig.add_subplot()
+        for i in range(len(portfolio_list)):
+            ax.plot([x[2] for x in portfolio_list[i].performace])
+        plt.legend(loc='upper right')
+        plt.ylabel('Portfolio Value')
+        plt.title(f'{n_quantiles} portfolios by {self.factor}')
+        plt.xlabel('date',labelpad=12)
+        ax.yaxis.tick_right()
+        plt.show()'''
+        
         return portfolio_list
-        # falta el código para mostrar los resultados
 
 class portfolio():
 
@@ -171,21 +183,6 @@ class portfolio():
             portfolio_value += market_data.get_paid_dividends(tickers[i], date - self.backtesting.check_period, date) # debe calcular los dividendos pagados por una lista de acciones entre dos fechas
 
         self.performance.append(date, portfolio_value)
-
-        # plot
-        '''loss = history.history['loss']
-val_loss = history.history['val_loss']
-
-fig = plt.figure(figsize=(8,8))
-ax = fig.add_subplot()
-ax.plot(loss, label='Training Loss')
-ax.plot(val_loss, label='Validation Loss')
-plt.legend(loc='upper right')
-plt.ylabel('Mean Squared Error')
-plt.title('RGB, ELU, Dropout')
-plt.xlabel('epoch',labelpad=2)
-ax.yaxis.tick_right()
-plt.show()'''
 
         return self
 

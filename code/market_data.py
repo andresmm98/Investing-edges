@@ -28,14 +28,17 @@ class market_data():
         symbols = [t['symbol'] for t in symbols][0:n_stocks]
 
         dta = []
+        empties = []
         for i in range(len(symbols)):
             request_url = f'historical-price-full/{symbols[i]}?'
             ans = req(request_url,self.api_key)
             if not ans:
-                del(symbols[i])
-                i -= 1
+                empties.append(symbols[i])
             else:
                 dta.append(ans)#['historicalStockList'] si se hacen los request de tres en tres 
+
+        for i in range(len(empties)):
+            symbols.remove(empties[i])
 
         self.dta = dta 
         self.symbols = symbols
