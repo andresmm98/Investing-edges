@@ -3,6 +3,7 @@
 # Mejoras: hacer los requests de tres en tres, dividendos, deslistadas
 #
 #------------------------------------------------------------------------------
+from numpy import empty
 import requests 
 import pandas as pd 
 
@@ -30,8 +31,12 @@ class market_data():
         for i in range(len(symbols)):
             request_url = f'historical-price-full/{symbols[i]}?'
             ans = req(request_url,self.api_key)
-            dta.append(ans)#['historicalStockList'] si se hacen los request de tres en tres 
-        
+            if not ans:
+                del(symbols[i])
+                i -= 1
+            else:
+                dta.append(ans)#['historicalStockList'] si se hacen los request de tres en tres 
+
         self.dta = dta 
         self.symbols = symbols
 

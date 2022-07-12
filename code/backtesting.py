@@ -172,6 +172,21 @@ class portfolio():
 
         self.performance.append(date, portfolio_value)
 
+        # plot
+        '''loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+fig = plt.figure(figsize=(8,8))
+ax = fig.add_subplot()
+ax.plot(loss, label='Training Loss')
+ax.plot(val_loss, label='Validation Loss')
+plt.legend(loc='upper right')
+plt.ylabel('Mean Squared Error')
+plt.title('RGB, ELU, Dropout')
+plt.xlabel('epoch',labelpad=2)
+ax.yaxis.tick_right()
+plt.show()'''
+
         return self
 
 def main():
